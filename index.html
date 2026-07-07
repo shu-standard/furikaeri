@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ふりかえりノート — 教師の毎日を伴走</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#ffffff; --ink:#3d3a34; --sub:#8a8478;
+    --accent:#5b8c6e; --accent-soft:#e6f0ea; --line:#ece7de;
+    --warn:#c98a5e; --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.7; padding-bottom:80px;
+  }
+  header{
+    max-width:680px; margin:0 auto; padding:28px 20px 8px;
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  header h1{font-size:20px; letter-spacing:.05em;}
+  header .streak{font-size:13px; color:var(--sub);}
+  header .streak b{color:var(--accent); font-size:16px;}
+  main{max-width:680px; margin:0 auto; padding:8px 20px;}
+  nav{
+    max-width:680px; margin:8px auto 0; padding:0 20px;
+    display:flex; gap:8px;
+  }
+  nav button{
+    flex:1; padding:10px 0; border:none; background:transparent; cursor:pointer;
+    font-size:14px; color:var(--sub); border-bottom:2.5px solid transparent;
+    font-family:inherit; transition:.15s;
+  }
+  nav button.active{color:var(--accent); border-bottom-color:var(--accent); font-weight:600;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; margin:16px 0;
+  }
+  .label{font-size:13px; color:var(--sub); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;}
+  textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    font-family:inherit; font-size:15px; line-height:1.7; resize:vertical;
+    min-height:64px; background:#fffdfa; color:var(--ink);
+  }
+  textarea:focus{outline:none; border-color:var(--accent);}
+  .mood-row{display:flex; gap:10px; justify-content:space-between;}
+  .mood-row button{
+    flex:1; font-size:26px; padding:8px 0; border:1.5px solid var(--line); border-radius:10px;
+    background:#fffdfa; cursor:pointer; transition:.15s; filter:grayscale(.7); opacity:.6;
+  }
+  .mood-row button.sel{border-color:var(--accent); background:var(--accent-soft); filter:none; opacity:1; transform:scale(1.06);}
+  .yesterday{
+    background:var(--accent-soft); border:none;
+  }
+  .yesterday .tag{font-size:12px; color:var(--accent); font-weight:600; letter-spacing:.05em;}
+  .yesterday p{margin-top:4px; font-size:15px;}
+  .yesterday .check-row{margin-top:10px; display:flex; gap:8px;}
+  .yesterday .check-row button{
+    font-size:13px; padding:6px 14px; border-radius:20px; border:1px solid var(--accent);
+    background:#fff; color:var(--accent); cursor:pointer; font-family:inherit;
+  }
+  .yesterday .check-row button.sel{background:var(--accent); color:#fff;}
+  .deep-q{font-size:15px; font-weight:600; margin-bottom:8px;}
+  .shuffle{
+    border:none; background:none; color:var(--sub); cursor:pointer; font-size:12px;
+    font-family:inherit; text-decoration:underline;
+  }
+  .save-btn{
+    width:100%; padding:14px; font-size:16px; font-weight:600; color:#fff;
+    background:var(--accent); border:none; border-radius:var(--radius); cursor:pointer;
+    font-family:inherit; letter-spacing:.1em; margin-top:4px;
+  }
+  .save-btn:active{transform:scale(.99);}
+  .saved-note{text-align:center; color:var(--accent); font-size:13px; margin-top:8px; min-height:20px;}
+  /* history */
+  .search{
+    width:100%; padding:10px 14px; border:1px solid var(--line); border-radius:10px;
+    font-family:inherit; font-size:14px; background:#fffdfa; margin:16px 0 4px;
+  }
+  .entry{cursor:pointer;}
+  .entry .e-head{display:flex; justify-content:space-between; align-items:center;}
+  .entry .e-date{font-weight:600; font-size:14px;}
+  .entry .e-mood{font-size:20px;}
+  .entry .e-preview{font-size:14px; color:var(--sub); margin-top:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .entry .e-full{display:none; margin-top:12px;}
+  .entry.open .e-full{display:block;}
+  .entry.open .e-preview{display:none;}
+  .e-full h4{font-size:12px; color:var(--accent); margin-top:12px; letter-spacing:.05em;}
+  .e-full p{font-size:14px; white-space:pre-wrap;}
+  .e-del{margin-top:14px; font-size:12px; color:#b06a6a; background:none; border:none; cursor:pointer; text-decoration:underline; font-family:inherit;}
+  .empty{text-align:center; color:var(--sub); font-size:14px; padding:40px 0;}
+  /* stats */
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:16px;}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; text-align:center;}
+  .stat b{display:block; font-size:24px; color:var(--accent);}
+  .stat span{font-size:12px; color:var(--sub);}
+  .heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); gap:3px; margin-top:8px;}
+  .hm-cell{width:100%; aspect-ratio:1; border-radius:3px; background:#eee9df;}
+  .hm-cell.l1{background:#cfe3d6;} .hm-cell.l2{background:#9cc4aa;}
+  .hm-cell.l3{background:#6da583;} .hm-cell.l4{background:#4a7d5f;}
+  .chart-wrap svg{width:100%; height:auto;}
+  h3.sec{font-size:14px; color:var(--sub); margin:24px 0 4px; font-weight:600;}
+  .io-row{display:flex; gap:10px; margin-top:20px;}
+  .io-row button,.io-row label{
+    flex:1; text-align:center; font-size:13px; padding:10px; border:1px solid var(--line);
+    background:var(--card); border-radius:10px; cursor:pointer; color:var(--sub); font-family:inherit;
+  }
+  .word-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
+  .chip{background:var(--accent-soft); color:var(--accent); border-radius:20px; padding:4px 12px; font-size:13px;}
+  footer{max-width:680px; margin:24px auto; padding:0 20px; font-size:12px; color:var(--sub); text-align:center;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ふりかえりノート</h1>
+  <div class="streak" id="streakBox"></div>
+</header>
+
+<nav>
+  <button id="tab-today" class="active" onclick="showTab('today')">きょう</button>
+  <button id="tab-history" onclick="showTab('history')">きろく</button>
+  <button id="tab-stats" onclick="showTab('stats')">あゆみ</button>
+</nav>
+
+<main>
+  <!-- ===== きょう ===== -->
+  <section id="view-today">
+    <div id="yesterdayBox"></div>
+
+    <div class="card">
+      <div class="label">きょうの調子</div>
+      <div class="mood-row" id="moodRow">
+        <button data-m="1">😞</button><button data-m="2">😕</button>
+        <button data-m="3">😐</button><button data-m="4">🙂</button>
+        <button data-m="5">😄</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label">きょう、いちばん心が動いた場面は?</div>
+      <textarea id="f-scene" placeholder="生徒の一言、授業の一瞬、職員室でのできごと…"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="label">うまくいったこと・よかったこと</div>
+      <textarea id="f-good" placeholder="小さなことでOK"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="label">引っかかっていること・もやもや</div>
+      <textarea id="f-stuck" placeholder="書くだけで軽くなることもあります"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="label">
+        <span>きょうの深める問い</span>
+        <button class="shuffle" onclick="shuffleQ()">別の問いにする</button>
+      </div>
+      <div class="deep-q" id="deepQ"></div>
+      <textarea id="f-deep" placeholder="思いつくままに"></textarea>
+    </div>
+
+    <div class="card">
+      <div class="label">あした、ひとつだけ試すこと</div>
+      <textarea id="f-next" placeholder="小さな一歩を一つだけ"></textarea>
+    </div>
+
+    <button class="save-btn" onclick="saveEntry()">きょうの振り返りを残す</button>
+    <div class="saved-note" id="savedNote"></div>
+  </section>
+
+  <!-- ===== きろく ===== -->
+  <section id="view-history" style="display:none">
+    <input class="search" id="searchBox" placeholder="キーワードで過去の記録をさがす" oninput="renderHistory()">
+    <div id="historyList"></div>
+  </section>
+
+  <!-- ===== あゆみ ===== -->
+  <section id="view-stats" style="display:none">
+    <div class="stat-grid" id="statGrid"></div>
+    <h3 class="sec">記録カレンダー(直近15週)</h3>
+    <div class="card"><div class="heatmap" id="heatmap"></div></div>
+    <h3 class="sec">調子の推移(直近30日)</h3>
+    <div class="card chart-wrap" id="moodChart"></div>
+    <h3 class="sec">よく出てくることば</h3>
+    <div class="card"><div class="word-chips" id="wordChips"></div></div>
+    <div class="io-row">
+      <button onclick="exportData()">データを書き出す(JSON)</button>
+      <label>読み込む<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+    </div>
+  </section>
+</main>
+
+<footer>データはこのブラウザの中だけに保存されます。ときどき「書き出す」でバックアップを。</footer>
+
+<script>
+const KEY = 'teacher-reflect-v1';
+const FIELDS = [
+  ['scene','心が動いた場面'],
+  ['good','うまくいったこと'],
+  ['stuck','引っかかっていること'],
+  ['deep','深める問い'],
+  ['next','あした試すこと'],
+];
+const QUESTIONS = [
+  'きょう、一番よく笑っていた生徒は誰? そのとき何があった?',
+  'きょうの授業、生徒の立場で受けていたらどう感じただろう?',
+  '最近、声をかけられていない生徒はいない?',
+  'きょうの自分の判断で、迷ったものは? 別の選択肢はあった?',
+  '半年前の自分と比べて、できるようになったことは?',
+  'きょう「教師になってよかった」と思えた瞬間はあった?',
+  '同僚から学んだこと、盗みたいと思ったことは?',
+  'きょう手放してもよかった仕事はなかった?',
+  '生徒のつまずきから、授業改善のヒントは見えた?',
+  'きょうの自分を、尊敬する先生が見ていたら何と言うだろう?',
+  '「うまくいかなかったこと」は、何が分かれば次はうまくいきそう?',
+  'きょう、自分をちゃんとねぎらえている? 何と声をかけたい?',
+  '保護者にきょうの教室の様子を一言で伝えるなら?',
+  '最近のクラスの空気を天気にたとえると? その理由は?',
+  'きょう生徒に一番伝えたかったことは、伝わっただろうか?',
+];
+
+let db = load();
+let mood = 0;
+let qIndex = pickQIndex();
+let nextCheck = null; // 'done' | 'partial' | 'skip'
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(KEY)) || {entries:{}}; }
+  catch(e){ return {entries:{}}; }
+}
+function persist(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+function todayKey(d=new Date()){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmt(k){
+  const [y,m,d] = k.split('-');
+  const dt = new Date(+y, m-1, +d);
+  const w = ['日','月','火','水','木','金','土'][dt.getDay()];
+  return `${+m}月${+d}日(${w})`;
+}
+function pickQIndex(){
+  // 日替わりで安定した問いを出す
+  const seed = Number(todayKey().replace(/-/g,''));
+  return seed % QUESTIONS.length;
+}
+
+/* ===== tabs ===== */
+function showTab(name){
+  for(const t of ['today','history','stats']){
+    document.getElementById('view-'+t).style.display = (t===name)?'':'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===name);
+  }
+  if(name==='history') renderHistory();
+  if(name==='stats') renderStats();
+}
+
+/* ===== today ===== */
+function renderYesterday(){
+  const keys = Object.keys(db.entries).filter(k=>k<todayKey()).sort();
+  const last = keys[keys.length-1];
+  const box = document.getElementById('yesterdayBox');
+  if(!last || !db.entries[last].next){ box.innerHTML=''; return; }
+  const e = db.entries[last];
+  box.innerHTML = `
+    <div class="card yesterday">
+      <span class="tag">前回(${fmt(last)})の「あした試すこと」</span>
+      <p>${esc(e.next)}</p>
+      <div class="check-row">
+        <button data-c="done" onclick="setCheck(this)">やってみた ○</button>
+        <button data-c="partial" onclick="setCheck(this)">少しだけ △</button>
+        <button data-c="skip" onclick="setCheck(this)">できなかった −</button>
+      </div>
+    </div>`;
+}
+function setCheck(btn){
+  nextCheck = btn.dataset.c;
+  document.querySelectorAll('.check-row button').forEach(b=>b.classList.toggle('sel', b===btn));
+}
+function renderDeepQ(){ document.getElementById('deepQ').textContent = QUESTIONS[qIndex]; }
+function shuffleQ(){
+  let n; do{ n = Math.floor(Math.random()*QUESTIONS.length); }while(n===qIndex);
+  qIndex = n; renderDeepQ();
+}
+document.getElementById('moodRow').addEventListener('click', ev=>{
+  const b = ev.target.closest('button'); if(!b) return;
+  mood = +b.dataset.m;
+  document.querySelectorAll('.mood-row button').forEach(x=>x.classList.toggle('sel', x===b));
+});
+
+function saveEntry(){
+  const k = todayKey();
+  const entry = { mood, q: QUESTIONS[qIndex], check: nextCheck, savedAt: Date.now() };
+  for(const [id] of FIELDS) entry[id] = document.getElementById('f-'+id).value.trim();
+  if(!entry.mood && FIELDS.every(([id])=>!entry[id])){
+    note('なにか一つだけでも残してみましょう'); return;
+  }
+  db.entries[k] = entry;
+  persist();
+  renderStreak();
+  note('保存しました。きょうもおつかれさまでした 🍵');
+}
+function note(msg){
+  const n = document.getElementById('savedNote');
+  n.textContent = msg;
+  setTimeout(()=>{ if(n.textContent===msg) n.textContent=''; }, 4000);
+}
+function restoreToday(){
+  const e = db.entries[todayKey()];
+  if(!e) return;
+  mood = e.mood||0;
+  document.querySelectorAll('.mood-row button').forEach(b=>b.classList.toggle('sel', +b.dataset.m===mood));
+  for(const [id] of FIELDS) document.getElementById('f-'+id).value = e[id]||'';
+  if(e.q){ const i = QUESTIONS.indexOf(e.q); if(i>=0){ qIndex=i; } }
+  nextCheck = e.check||null;
+}
+
+/* ===== streak ===== */
+function calcStreak(){
+  let s=0; const d=new Date();
+  if(!db.entries[todayKey(d)]) d.setDate(d.getDate()-1); // 今日未記入でも昨日から数える
+  while(db.entries[todayKey(d)]){ s++; d.setDate(d.getDate()-1); }
+  return s;
+}
+function renderStreak(){
+  const total = Object.keys(db.entries).length;
+  document.getElementById('streakBox').innerHTML =
+    total ? `連続 <b>${calcStreak()}</b> 日 / 累計 ${total} 日` : 'ようこそ 🌱';
+}
+
+/* ===== history ===== */
+function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const MOODS = ['','😞','😕','😐','🙂','😄'];
+function renderHistory(){
+  const q = document.getElementById('searchBox').value.trim();
+  const list = document.getElementById('historyList');
+  const keys = Object.keys(db.entries).sort().reverse().filter(k=>{
+    if(!q) return true;
+    const e = db.entries[k];
+    return FIELDS.some(([id])=>(e[id]||'').includes(q)) || (e.q||'').includes(q) || k.includes(q);
+  });
+  if(!keys.length){ list.innerHTML = `<div class="empty">${q?'見つかりませんでした':'まだ記録がありません。「きょう」から始めましょう'}</div>`; return; }
+  list.innerHTML = keys.map(k=>{
+    const e = db.entries[k];
+    const preview = FIELDS.map(([id])=>e[id]).filter(Boolean).join(' / ');
+    const full = FIELDS.map(([id,label])=>{
+      if(!e[id]) return '';
+      const lab = id==='deep' && e.q ? esc(e.q) : label;
+      return `<h4>${lab}</h4><p>${esc(e[id])}</p>`;
+    }).join('');
+    return `<div class="card entry" onclick="this.classList.toggle('open')">
+      <div class="e-head"><span class="e-date">${fmt(k)}</span><span class="e-mood">${MOODS[e.mood]||''}</span></div>
+      <div class="e-preview">${esc(preview)}</div>
+      <div class="e-full">${full}
+        <button class="e-del" onclick="event.stopPropagation(); delEntry('${k}')">この記録を削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function delEntry(k){
+  if(!confirm(fmt(k)+' の記録を削除しますか?')) return;
+  delete db.entries[k]; persist(); renderHistory(); renderStreak();
+}
+
+/* ===== stats ===== */
+function renderStats(){
+  const keys = Object.keys(db.entries).sort();
+  const total = keys.length;
+  const moods = keys.map(k=>db.entries[k].mood).filter(m=>m>0);
+  const avg = moods.length ? (moods.reduce((a,b)=>a+b,0)/moods.length).toFixed(1) : '–';
+  const tried = keys.filter(k=>db.entries[k].check==='done'||db.entries[k].check==='partial').length;
+  const checked = keys.filter(k=>db.entries[k].check).length;
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat"><b>${total}</b><span>記録した日</span></div>
+    <div class="stat"><b>${avg}</b><span>調子の平均</span></div>
+    <div class="stat"><b>${checked?Math.round(tried/checked*100)+'%':'–'}</b><span>「試すこと」実行率</span></div>`;
+
+  // heatmap: 15 weeks, columns = weeks, rows = Sun..Sat
+  const hm = document.getElementById('heatmap');
+  const end = new Date();
+  const start = new Date(); start.setDate(end.getDate() - (14*7 + end.getDay()));
+  let cells='';
+  const cur = new Date(start);
+  while(cur <= end){
+    const k = todayKey(cur);
+    const e = db.entries[k];
+    let lv = 0;
+    if(e){
+      const filled = FIELDS.filter(([id])=>e[id]).length;
+      lv = Math.min(4, 1 + Math.floor(filled/2));
+    }
+    cells += `<div class="hm-cell l${lv}" title="${fmt(k)}"></div>`;
+    cur.setDate(cur.getDate()+1);
+  }
+  hm.innerHTML = cells;
+
+  // mood chart: last 30 days, SVG line
+  const days=[];
+  for(let i=29;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(todayKey(d)); }
+  const W=600,H=160,P=24;
+  const pts = days.map((k,i)=>{
+    const m = db.entries[k]?.mood;
+    if(!m) return null;
+    return [P + i*(W-2*P)/29, H-P - (m-1)*(H-2*P)/4];
+  });
+  let path='', segs=[];
+  pts.forEach(p=>{ if(p) segs.push(p); else if(segs.length){ path+=seg(segs); segs=[]; } });
+  if(segs.length) path+=seg(segs);
+  function seg(arr){ return arr.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')+' '; }
+  const dots = pts.filter(Boolean).map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#5b8c6e"/>`).join('');
+  const grid = [1,2,3,4,5].map(m=>{
+    const y = H-P-(m-1)*(H-2*P)/4;
+    return `<line x1="${P}" y1="${y}" x2="${W-P}" y2="${y}" stroke="#ece7de"/>
+            <text x="4" y="${y+4}" font-size="11" fill="#8a8478">${MOODS[m]}</text>`;
+  }).join('');
+  document.getElementById('moodChart').innerHTML = pts.some(Boolean)
+    ? `<svg viewBox="0 0 ${W} ${H}">${grid}<path d="${path}" fill="none" stroke="#5b8c6e" stroke-width="2"/>${dots}</svg>`
+    : '<div class="empty">調子を記録するとグラフが育ちます</div>';
+
+  // word chips: 2文字以上の頻出語(簡易)
+  const text = keys.map(k=>FIELDS.map(([id])=>db.entries[k][id]||'').join(' ')).join(' ');
+  const stop = new Set(['こと','ため','よう','それ','これ','ので','です','ます','した','して','いる','ある','思う','思った','感じ','今日','自分','とき','たち','たい','なる','なった','から','まで','など','という']);
+  const freq = {};
+  (text.match(/[一-龠々ぁ-んァ-ヴー]{2,6}/g)||[]).forEach(w=>{
+    if(stop.has(w)) return;
+    freq[w]=(freq[w]||0)+1;
+  });
+  const top = Object.entries(freq).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  document.getElementById('wordChips').innerHTML = top.length
+    ? top.map(([w,n])=>`<span class="chip">${esc(w)} ×${n}</span>`).join('')
+    : '<span style="color:var(--sub);font-size:13px">記録が増えると、よく使うことばが見えてきます</span>';
+}
+
+/* ===== export / import ===== */
+function exportData(){
+  const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'furikaeri-backup-'+todayKey()+'.json';
+  a.click();
+}
+function importData(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const data = JSON.parse(r.result);
+      if(!data.entries) throw 0;
+      Object.assign(db.entries, data.entries);
+      persist(); renderStreak(); renderStats();
+      alert('読み込みました('+Object.keys(data.entries).length+'件)');
+    }catch(e){ alert('ファイルを読み込めませんでした'); }
+  };
+  r.readAsText(f);
+}
+
+/* ===== init ===== */
+renderDeepQ();
+renderYesterday();
+restoreToday();
+renderStreak();
+</script>
+</body>
+</html>
