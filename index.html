@@ -106,6 +106,32 @@
     flex:1; text-align:center; font-size:13px; padding:10px; border:1px solid var(--line);
     background:var(--card); border-radius:10px; cursor:pointer; color:var(--sub); font-family:inherit;
   }
+  /* ネタ帳 */
+  .idea-add{
+    font-size:11px; margin-left:8px; padding:2px 10px; border-radius:12px;
+    border:1px solid var(--warn); background:#fff; color:var(--warn);
+    cursor:pointer; font-family:inherit; vertical-align:middle;
+  }
+  .idea-card{display:flex; gap:12px; align-items:flex-start;}
+  .idea-card.used{opacity:.45;}
+  .idea-card .i-body{flex:1;}
+  .idea-card .i-text{font-size:14px; white-space:pre-wrap;}
+  .idea-card .i-src{font-size:11px; color:var(--sub); margin-top:4px;}
+  .idea-btns{display:flex; flex-direction:column; gap:6px;}
+  .idea-btns button{
+    font-size:11px; padding:4px 10px; border-radius:8px; border:1px solid var(--line);
+    background:#fffdfa; color:var(--sub); cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .idea-btns button.primary{border-color:var(--accent); color:var(--accent);}
+  .idea-manual{display:flex; gap:8px; margin:16px 0 4px; align-items:stretch;}
+  .idea-manual textarea{min-height:48px; flex:1;}
+  .idea-manual button{
+    padding:0 18px; border:none; border-radius:10px; background:var(--warn); color:#fff;
+    font-family:inherit; font-size:14px; cursor:pointer;
+  }
+  .hint-item{display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line);}
+  .hint-item:first-child{border-top:none;}
+  .hint-item .h-text{flex:1; font-size:13px; color:var(--sub);}
   .word-chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;}
   .chip{background:var(--accent-soft); color:var(--accent); border-radius:20px; padding:4px 12px; font-size:13px;}
   footer{max-width:680px; margin:24px auto; padding:0 20px; font-size:12px; color:var(--sub); text-align:center;}
@@ -121,6 +147,7 @@
 <nav>
   <button id="tab-today" class="active" onclick="showTab('today')">きょう</button>
   <button id="tab-history" onclick="showTab('history')">きろく</button>
+  <button id="tab-ideas" onclick="showTab('ideas')">ネタ帳</button>
   <button id="tab-stats" onclick="showTab('stats')">あゆみ</button>
 </nav>
 
@@ -177,6 +204,17 @@
     <div id="historyList"></div>
   </section>
 
+  <!-- ===== ネタ帳 ===== -->
+  <section id="view-ideas" style="display:none">
+    <div class="idea-manual">
+      <textarea id="ideaInput" placeholder="学級通信に書きたいことをメモ"></textarea>
+      <button onclick="addManualIdea()">追加</button>
+    </div>
+    <div id="ideaList"></div>
+    <h3 class="sec">ネタになりそうな最近の記録</h3>
+    <div class="card" id="ideaHints"></div>
+  </section>
+
   <!-- ===== あゆみ ===== -->
   <section id="view-stats" style="display:none">
     <div class="stat-grid" id="statGrid"></div>
@@ -228,8 +266,12 @@ let qIndex = pickQIndex();
 let nextCheck = null; // 'done' | 'partial' | 'skip'
 
 function load(){
-  try{ return JSON.parse(localStorage.getItem(KEY)) || {entries:{}}; }
-  catch(e){ return {entries:{}}; }
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(KEY)) || {}; }
+  catch(e){ d = {}; }
+  d.entries = d.entries || {};
+  d.ideas = d.ideas || [];
+  return d;
 }
 function persist(){ localStorage.setItem(KEY, JSON.stringify(db)); }
 function todayKey(d=new Date()){
@@ -249,11 +291,12 @@ function pickQIndex(){
 
 /* ===== tabs ===== */
 function showTab(name){
-  for(const t of ['today','history','stats']){
+  for(const t of ['today','history','ideas','stats']){
     document.getElementById('view-'+t).style.display = (t===name)?'':'none';
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
   }
   if(name==='history') renderHistory();
+  if(name==='ideas') renderIdeas();
   if(name==='stats') renderStats();
 }
 
@@ -348,7 +391,11 @@ function renderHistory(){
     const full = FIELDS.map(([id,label])=>{
       if(!e[id]) return '';
       const lab = id==='deep' && e.q ? esc(e.q) : label;
-      return `<h4>${lab}</h4><p>${esc(e[id])}</p>`;
+      const added = hasIdea(k, id);
+      const btn = added
+        ? `<button class="idea-add" disabled style="opacity:.5">ネタ帳に追加済み</button>`
+        : `<button class="idea-add" onclick="event.stopPropagation(); addIdeaFrom('${k}','${id}')">＋ 通信ネタに</button>`;
+      return `<h4>${lab}${btn}</h4><p>${esc(e[id])}</p>`;
     }).join('');
     return `<div class="card entry" onclick="this.classList.toggle('open')">
       <div class="e-head"><span class="e-date">${fmt(k)}</span><span class="e-mood">${MOODS[e.mood]||''}</span></div>
@@ -362,6 +409,72 @@ function renderHistory(){
 function delEntry(k){
   if(!confirm(fmt(k)+' の記録を削除しますか?')) return;
   delete db.entries[k]; persist(); renderHistory(); renderStreak();
+}
+
+/* ===== ネタ帳 ===== */
+function hasIdea(src, field){
+  return db.ideas.some(i=>i.src===src && i.field===field);
+}
+function addIdeaFrom(k, field){
+  const text = db.entries[k]?.[field];
+  if(!text || hasIdea(k, field)) return;
+  db.ideas.push({id:Date.now(), text, src:k, field, used:false});
+  persist(); renderHistory();
+  alert('ネタ帳に追加しました');
+}
+function addManualIdea(){
+  const ta = document.getElementById('ideaInput');
+  const text = ta.value.trim();
+  if(!text) return;
+  db.ideas.push({id:Date.now(), text, src:null, field:null, used:false});
+  ta.value=''; persist(); renderIdeas();
+}
+function toggleUsed(id){
+  const i = db.ideas.find(i=>i.id===id); if(!i) return;
+  i.used = !i.used; persist(); renderIdeas();
+}
+function copyIdea(id){
+  const i = db.ideas.find(i=>i.id===id); if(!i) return;
+  navigator.clipboard.writeText(i.text).then(()=>alert('コピーしました'));
+}
+function delIdea(id){
+  db.ideas = db.ideas.filter(i=>i.id!==id);
+  persist(); renderIdeas();
+}
+function renderIdeas(){
+  const list = document.getElementById('ideaList');
+  const ideas = [...db.ideas].sort((a,b)=>(a.used-b.used) || (b.id-a.id));
+  list.innerHTML = ideas.length ? ideas.map(i=>`
+    <div class="card idea-card ${i.used?'used':''}">
+      <div class="i-body">
+        <div class="i-text">${esc(i.text)}</div>
+        <div class="i-src">${i.src ? fmt(i.src)+'の記録から' : '手動メモ'}${i.used?' ・使用済み':''}</div>
+      </div>
+      <div class="idea-btns">
+        <button class="primary" onclick="copyIdea(${i.id})">コピー</button>
+        <button onclick="toggleUsed(${i.id})">${i.used?'未使用に戻す':'使用済みにする'}</button>
+        <button onclick="delIdea(${i.id})">削除</button>
+      </div>
+    </div>`).join('')
+    : '<div class="empty">まだネタがありません。「きろく」の各記述の「＋通信ネタに」から集められます</div>';
+
+  // ヒント: 直近の「心が動いた場面」「うまくいったこと」で未追加のもの
+  const keys = Object.keys(db.entries).sort().reverse();
+  const hints = [];
+  for(const k of keys){
+    for(const f of ['scene','good']){
+      const t = db.entries[k][f];
+      if(t && !hasIdea(k,f)) hints.push({k, f, t});
+    }
+    if(hints.length>=5) break;
+  }
+  document.getElementById('ideaHints').innerHTML = hints.length
+    ? hints.slice(0,5).map(h=>`
+      <div class="hint-item">
+        <div class="h-text"><b style="color:var(--ink)">${fmt(h.k)}</b> ${esc(h.t)}</div>
+        <button class="idea-add" onclick="addIdeaFrom('${h.k}','${h.f}'); renderIdeas()">＋ 追加</button>
+      </div>`).join('')
+    : '<span style="color:var(--sub);font-size:13px">振り返りがたまると、ここに候補が出てきます</span>';
 }
 
 /* ===== stats ===== */
@@ -449,6 +562,9 @@ function importData(ev){
       const data = JSON.parse(r.result);
       if(!data.entries) throw 0;
       Object.assign(db.entries, data.entries);
+      for(const i of (data.ideas||[])){
+        if(!db.ideas.some(x=>x.id===i.id)) db.ideas.push(i);
+      }
       persist(); renderStreak(); renderStats();
       alert('読み込みました('+Object.keys(data.entries).length+'件)');
     }catch(e){ alert('ファイルを読み込めませんでした'); }
